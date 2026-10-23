@@ -22,6 +22,12 @@
   const toastEl = document.getElementById("toast");
   let state = null;
   let wakeLock = null;
+  let installPrompt = null;
+
+  const isStandalone = () =>
+    window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
   // ---------- Opslag ----------
   function openDb() {
@@ -221,6 +227,7 @@
         <p>Lievelingsrecepten, netjes bij elkaar.</p>
         <div class="ornament" aria-hidden="true">✻</div>
       </section>
+      ${installBanner()}
       <div class="tiles">
         ${first ? tile(first, true) : ""}
         ${rest.map((c) => tile(c, false)).join("")}
@@ -229,6 +236,20 @@
       ${recent.length ? `<h2 class="section-title">Laatst bijgewerkt</h2><div class="cards">${recent.map(recipeCard).join("")}</div>` : ""}
       ${!state.recipes.length ? `<div class="empty" style="margin-top:24px"><span class="big">📖</span>Je receptenboek is nog leeg. Tik op <b>Nieuw recept</b> om te beginnen.</div>` : ""}
       <a class="btn fab" href="#/nieuw">＋ Nieuw recept</a>`;
+  }
+
+  function installBanner() {
+    if (isStandalone()) return "";
+    try { if (localStorage.getItem("installHidden")) return ""; } catch {}
+    let how;
+    if (installPrompt) how = `<button class="btn small" type="button" id="installBtn">App installeren</button>`;
+    else if (isIos()) how = `<span>Tik in Safari op het deelicoon <b>⬆︎</b> en kies <b>Zet op beginscherm</b>.</span>`;
+    else how = `<span>Open het browsermenu <b>⋮</b> en kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b>.</span>`;
+    return `<div class="install">
+      <img src="icons/icon-192.png" alt="" width="44" height="44">
+      <div class="install-text"><b>Zet het receptenboek op je startscherm</b>${how}</div>
+      <button class="iconbtn" type="button" id="installHide" aria-label="Verbergen">✕</button>
+    </div>`;
   }
 
   function viewCategory(id) {
@@ -427,6 +448,7 @@
 
   // ---------- Interactie ----------
   function bind(page, id) {
+    bindInstall();
     if (page === "recept") bindRecipe(recipeById(id));
     if (page === "nieuw" || page === "bewerk") bindForm(id ? recipeById(id) : null);
     if (page === "zoeken") bindSearch();
@@ -462,6 +484,22 @@
           toast("Het scherm blijft aan zolang dit recept open staat");
         } catch { wake.checked = false; toast("Scherm aan houden lukt niet op dit toestel"); }
       } else releaseWakeLock();
+    });
+  }
+
+  function bindInstall() {
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.addEventListener("click", async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      await installPrompt.userChoice.catch(() => {});
+      installPrompt = null;
+      render();
+    });
+    const hide = document.getElementById("installHide");
+    if (hide) hide.addEventListener("click", () => {
+      try { localStorage.setItem("installHidden", "1"); } catch {}
+      hide.closest(".install").remove();
     });
   }
 
@@ -629,6 +667,17 @@
   });
 
   window.addEventListener("hashchange", render);
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    if (state && !parseHash().parts.length) render();
+  });
+  window.addEventListener("appinstalled", () => {
+    installPrompt = null;
+    toast("Het receptenboek staat nu op je startscherm");
+    if (state) render();
+  });
 
   load().then(render);
 

@@ -92,6 +92,17 @@ main {
   margin: 28px 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
 }
 
+/* ---------- Installeren ---------- */
+.install {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 18px; padding: 12px 8px 12px 14px;
+  background: var(--card); border: 1px solid #e9c8a4; border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.install img { border-radius: 10px; flex: none; }
+.install-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: .92rem; color: var(--ink-soft); }
+.install-text > b { color: var(--ink); font-size: 1rem; }
+.install .iconbtn { flex: none; width: 36px; height: 36px; color: var(--ink-soft); }
+
 /* ---------- Category tiles ---------- */
 .tiles {
   display: grid; gap: 14px;
