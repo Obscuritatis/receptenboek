@@ -7,11 +7,11 @@
   const STATE_KEY = "state";
 
   const DEFAULT_CATEGORIES = [
-    ["Desserts & gebak", "🍮"],
     ["Voorgerechten", "🥗"],
     ["Soepen", "🍲"],
     ["Hoofdgerechten", "🍝"],
     ["Bijgerechten", "🥔"],
+    ["Desserts & gebak", "🍮"],
     ["Ontbijt & brunch", "🥐"],
     ["Sauzen & dips", "🫙"],
     ["Dranken", "🍹"],
@@ -190,6 +190,15 @@
         state.categories = state.categories.filter((c) => c !== gebak);
       }
       state.migrations.push("desserts-gebak");
+    }
+    if (!state.migrations.includes("desserts-na-bijgerechten")) {
+      const i = state.categories.findIndex((c) => c.name === "Desserts & gebak");
+      if (i >= 0) {
+        const [desserts] = state.categories.splice(i, 1);
+        const j = state.categories.findIndex((c) => c.name === "Bijgerechten");
+        state.categories.splice(j >= 0 ? j + 1 : state.categories.length, 0, desserts);
+      }
+      state.migrations.push("desserts-na-bijgerechten");
     }
   }
 
