@@ -242,7 +242,7 @@
     if (isStandalone()) return "";
     try { if (localStorage.getItem("installHidden")) return ""; } catch {}
     let how;
-    if (installPrompt) how = `<button class="btn small" type="button" id="installBtn">App installeren</button>`;
+    if (installPrompt) how = `<button class="btn small" type="button" id="installBtn">Installeer als app</button>`;
     else if (isIos()) how = `<span>Tik in Safari op het deelicoon <b>⬆︎</b> en kies <b>Zet op beginscherm</b>.</span>`;
     else how = `<span>Open het browsermenu <b>⋮</b> en kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b>.</span>`;
     return `<div class="install">
