@@ -227,6 +227,7 @@
       case undefined: html = viewHome(); break;
       case "categorie": html = viewCategory(id); break;
       case "recept": html = viewRecipe(id); break;
+      case "ontvang": html = `<p class="loading">Recept openen…</p>`; break;
       case "nieuw": html = viewForm(null, params.get("cat")); break;
       case "bewerk": html = viewForm(id); break;
       case "zoeken": html = viewSearch(params.get("q") || ""); break;
@@ -318,17 +319,27 @@
     const r = recipeById(id);
     if (!r) return viewNotFound();
     const cat = catById(r.categoryId);
+    return `
+      <div class="crumbs"><a href="#/">Receptenboek</a> › ${cat ? `<a href="#/categorie/${cat.id}">${esc(cat.name)}</a>` : "Zonder categorie"}</div>
+      ${recipeArticle(r, cat ? cat.emoji + " " + cat.name : "", `
+            <button class="btn small" type="button" id="shareBtn">↗ Delen</button>
+            <button class="btn ghost small" type="button" id="favBtn">${r.favorite ? "♥ Favoriet" : "♡ Favoriet"}</button>
+            <a class="btn ghost small" href="#/bewerk/${r.id}">✎ Bewerken</a>
+            <button class="btn ghost small" type="button" id="printBtn">⎙ Afdrukken</button>
+            ${"wakeLock" in navigator ? `<label class="toggle"><input type="checkbox" id="wakeToggle"> Scherm aan houden</label>` : ""}`)}`;
+  }
+
+  function recipeArticle(r, kicker, toolbar) {
     const servings = Number(r.servings) || 0;
     const facts = [
       r.prepTime ? [formatMinutes(r.prepTime), "Voorbereiding"] : null,
       r.cookTime ? [formatMinutes(r.cookTime), "Bereiding"] : null,
     ].filter(Boolean);
     return `
-      <div class="crumbs"><a href="#/">Receptenboek</a> › ${cat ? `<a href="#/categorie/${cat.id}">${esc(cat.name)}</a>` : "Zonder categorie"}</div>
       <article class="recipe">
         ${r.photo ? `<img class="photo" src="${r.photo}" alt="">` : ""}
         <div class="inner">
-          <div class="kicker">${cat ? esc(cat.emoji + " " + cat.name) : ""}</div>
+          <div class="kicker">${esc(kicker)}</div>
           <h1>${esc(r.title)}</h1>
           ${r.description ? `<p class="intro">${esc(r.description)}</p>` : ""}
           <div class="facts">
@@ -339,12 +350,8 @@
                 <small>Personen</small></div>` : ""}
             ${facts.map(([v, l]) => `<div class="fact"><b>${v}</b><small>${l}</small></div>`).join("")}
           </div>
-          <div class="toolbar">
-            <button class="btn ghost small" type="button" id="favBtn">${r.favorite ? "♥ Favoriet" : "♡ Favoriet"}</button>
-            <a class="btn ghost small" href="#/bewerk/${r.id}">✎ Bewerken</a>
-            <button class="btn ghost small" type="button" id="printBtn">⎙ Afdrukken</button>
-            ${"wakeLock" in navigator ? `<label class="toggle"><input type="checkbox" id="wakeToggle"> Scherm aan houden</label>` : ""}
-          </div>
+          <div class="toolbar">${toolbar}</div>
+          <div id="sharePanel" class="share-panel" hidden></div>
           <div class="recipe-cols">
             <section>
               <h2>Ingrediënten</h2>
@@ -498,6 +505,7 @@
   function bind(page, id) {
     bindInstall();
     if (page === "recept") bindRecipe(recipeById(id));
+    if (page === "ontvang") showReceived(id);
     if (page === "nieuw" || page === "bewerk") bindForm(id ? recipeById(id) : null);
     if (page === "zoeken") bindSearch();
     if (page === "instellingen") bindSettings();
@@ -505,19 +513,8 @@
 
   function bindRecipe(r) {
     if (!r) return;
-    const base = Number(r.servings) || 0;
-    let current = base;
-    renderIngredients(r, 1);
-    app.querySelectorAll("[data-serv]").forEach((b) => b.addEventListener("click", () => {
-      current = Math.max(1, current + Number(b.dataset.serv));
-      document.getElementById("servCount").textContent = current;
-      renderIngredients(r, base ? current / base : 1);
-    }));
-    app.querySelectorAll(".steps li:not(.sub)").forEach((li) => {
-      const toggle = () => li.classList.toggle("done");
-      li.addEventListener("click", toggle);
-      li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
-    });
+    bindCooking(r);
+    document.getElementById("shareBtn").addEventListener("click", () => shareRecipe(r));
     document.getElementById("favBtn").addEventListener("click", async (e) => {
       r.favorite = !r.favorite;
       e.currentTarget.textContent = r.favorite ? "♥ Favoriet" : "♡ Favoriet";
@@ -548,6 +545,123 @@
     if (hide) hide.addEventListener("click", () => {
       try { localStorage.setItem("installHidden", "1"); } catch {}
       hide.closest(".install").remove();
+    });
+  }
+
+  // Personen herschalen en stappen afvinken (ook in de voorvertoning van een gedeeld recept)
+  function bindCooking(r) {
+    const base = Number(r.servings) || 0;
+    let current = base;
+    renderIngredients(r, 1);
+    app.querySelectorAll("[data-serv]").forEach((b) => b.addEventListener("click", () => {
+      current = Math.max(1, current + Number(b.dataset.serv));
+      document.getElementById("servCount").textContent = current;
+      renderIngredients(r, base ? current / base : 1);
+    }));
+    app.querySelectorAll(".steps li:not(.sub)").forEach((li) => {
+      const toggle = () => li.classList.toggle("done");
+      li.addEventListener("click", toggle);
+      li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    });
+  }
+
+  // ---------- Delen ----------
+  function shareText(r, link) {
+    const out = [`*${r.title}*`];
+    if (r.description) out.push(`_${r.description}_`);
+    const total = (Number(r.prepTime) || 0) + (Number(r.cookTime) || 0);
+    const facts = [r.servings ? `👥 ${r.servings} personen` : "", total ? `⏱ ${formatMinutes(total)}` : ""].filter(Boolean);
+    if (facts.length) out.push(facts.join("  ·  "));
+    out.push("", "*Ingrediënten*");
+    for (const l of r.ingredients) out.push(l.startsWith("#") ? `_${l.replace(/^#+\s*/, "")}_` : `• ${l}`);
+    out.push("", "*Bereiding*");
+    let n = 0;
+    for (const l of r.steps) out.push(l.startsWith("#") ? `_${l.replace(/^#+\s*/, "")}_` : `${++n}. ${l}`);
+    if (r.notes) out.push("", `💡 ${r.notes}`);
+    if (link) out.push("", "📖 Bewaar dit recept in je eigen receptenboek:", link);
+    return out.join("\n");
+  }
+
+  // Recept in de link zelf verpakken (gecomprimeerd), zodat er geen server nodig is
+  const SHARE_FIELDS = ["title", "description", "servings", "prepTime", "cookTime", "ingredients", "steps", "notes"];
+  const toB64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const fromB64url = (str) => Uint8Array.from(atob(str.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+
+  async function encodeRecipe(r) {
+    const data = Object.fromEntries(SHARE_FIELDS.map((k) => [k, r[k]]));
+    const cat = catById(r.categoryId);
+    if (cat) data.category = cat.name;
+    const bytes = new TextEncoder().encode(JSON.stringify(data));
+    if (typeof CompressionStream === "undefined") return "j" + toB64url(bytes);
+    const zipped = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+    return "z" + toB64url(new Uint8Array(zipped));
+  }
+
+  async function decodeRecipe(code) {
+    const bytes = fromB64url(code.slice(1));
+    let text;
+    if (code[0] === "z") {
+      text = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
+    } else text = new TextDecoder().decode(bytes);
+    const d = JSON.parse(text);
+    if (!d.title) throw new Error("leeg recept");
+    return {
+      title: String(d.title), description: String(d.description || ""),
+      servings: Number(d.servings) || "", prepTime: Number(d.prepTime) || "", cookTime: Number(d.cookTime) || "",
+      ingredients: Array.isArray(d.ingredients) ? d.ingredients.map(String) : [],
+      steps: Array.isArray(d.steps) ? d.steps.map(String) : [],
+      notes: String(d.notes || ""), category: String(d.category || ""),
+    };
+  }
+
+  async function shareRecipe(r) {
+    let link = "";
+    try { link = `${location.origin}${location.pathname}#/ontvang/${await encodeRecipe(r)}`; } catch {}
+    const text = shareText(r, link);
+    if (navigator.share) {
+      try { await navigator.share({ title: r.title, text }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const panel = document.getElementById("sharePanel");
+    panel.innerHTML = `
+      <b>Recept delen</b>
+      <div class="btn-row" style="margin-top:8px">
+        <a class="btn small whatsapp" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn ghost small" href="mailto:?subject=${encodeURIComponent(r.title)}&body=${encodeURIComponent(text.replace(/[*_]/g, ""))}">E-mail</a>
+        <button class="btn ghost small" type="button" id="copyBtn">Tekst kopiëren</button>
+      </div>`;
+    panel.hidden = false;
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); toast("Gekopieerd, plak het waar je wil"); }
+      catch { toast("Kopiëren lukt niet in deze browser"); }
+    });
+  }
+
+  async function showReceived(code) {
+    let r;
+    try { r = await decodeRecipe(code || ""); }
+    catch { app.innerHTML = viewNotFound(); return; }
+    const match = state.categories.find((c) => c.name.toLowerCase() === r.category.toLowerCase());
+    app.innerHTML = `
+      <div class="crumbs"><a href="#/">Receptenboek</a> › Gedeeld recept</div>
+      <div class="panel received">
+        <b>Iemand deelde dit recept met je.</b>
+        <div class="received-row">
+          <select id="recvCat" aria-label="Categorie">
+            ${state.categories.map((c) => `<option value="${c.id}" ${match && match.id === c.id ? "selected" : ""}>${esc(c.emoji)} ${esc(c.name)}</option>`).join("")}
+          </select>
+          <button class="btn" type="button" id="saveReceived">Bewaren in mijn receptenboek</button>
+        </div>
+      </div>
+      ${recipeArticle(r, "Gedeeld recept", "")}`;
+    bindCooking(r);
+    document.getElementById("saveReceived").addEventListener("click", async () => {
+      const { category, ...rest } = r;
+      const rec = { ...rest, id: uid(), categoryId: document.getElementById("recvCat").value, source: "", photo: "", favorite: false, createdAt: Date.now(), updatedAt: Date.now() };
+      state.recipes.push(rec);
+      await save();
+      toast("Recept bewaard");
+      location.hash = `#/recept/${rec.id}`;
     });
   }
 

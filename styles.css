@@ -243,6 +243,13 @@ main {
 .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--ink-soft); cursor: pointer; }
 .toggle input { accent-color: var(--olive); width: 18px; height: 18px; }
 
+.share-panel { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+.btn.whatsapp { background: #25d366; border-color: #25d366; color: #fff; }
+.btn.whatsapp:hover { background: #1da851; border-color: #1da851; }
+.received { border-color: #e9c8a4; background: #fff4e0; }
+.received-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.received-row select { flex: 1 1 180px; width: auto; }
+
 /* ---------- Forms ---------- */
 .form { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
 .field { margin-bottom: 16px; }
@@ -280,7 +287,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--butter); ou
 /* ---------- Print ---------- */
 @media print {
   body { background: #fff; font-size: 12pt; }
-  .topbar, .fab, .toolbar, .crumbs, .btn-row, .toast { display: none !important; }
+  .topbar, .fab, .toolbar, .crumbs, .btn-row, .toast, .share-panel, .received, .install { display: none !important; }
   main { padding: 0; max-width: none; }
   .recipe { box-shadow: none; border: 0; }
   .recipe .photo { max-height: 260px; }

@@ -1,5 +1,5 @@
 /* Service worker: app-bestanden offline beschikbaar, bij verbinding altijd de nieuwste versie. */
-const CACHE = "receptenboek-v6";
+const CACHE = "receptenboek-v7";
 const SHELL = [
   "./",
   "index.html",
