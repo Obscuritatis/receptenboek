@@ -123,13 +123,6 @@ main {
 .tile .emoji { position: absolute; top: 10px; right: 12px; font-size: 2.4rem; line-height: 1; }
 .tile .name { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; line-height: 1.2; }
 .tile .count { font-size: .85rem; color: var(--ink-soft); }
-.tile.featured {
-  grid-column: 1 / -1; min-height: 150px;
-  background: linear-gradient(135deg, #fff4e0 0%, #f6dcc0 100%);
-  border-color: #e9c8a4;
-}
-.tile.featured .emoji { font-size: 3.4rem; top: 16px; right: 20px; }
-.tile.featured .name { font-size: 1.6rem; color: var(--accent-dark); }
 
 /* ---------- Recipe cards ---------- */
 .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }

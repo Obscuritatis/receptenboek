@@ -326,10 +326,9 @@
   }
 
   function viewHome() {
-    const [first, ...rest] = state.categories;
-    const tile = (c, featured) => {
+    const tile = (c) => {
       const n = recipesIn(c.id).length;
-      return `<a class="tile${featured ? " featured" : ""}" href="#/categorie/${c.id}">
+      return `<a class="tile" href="#/categorie/${c.id}">
         <span class="emoji" aria-hidden="true">${esc(c.emoji)}</span>
         <span class="name">${esc(c.name)}</span>
         <span class="count">${n === 1 ? "1 recept" : `${n} recepten`}</span>
@@ -345,8 +344,7 @@
       </section>
       ${installBanner()}
       <div class="tiles">
-        ${first ? tile(first, true) : ""}
-        ${rest.map((c) => tile(c, false)).join("")}
+        ${state.categories.map(tile).join("")}
       </div>
       ${favorites.length ? `<h2 class="section-title">Favorieten</h2><div class="cards">${favorites.map(recipeCard).join("")}</div>` : ""}
       ${recent.length ? `<h2 class="section-title">Laatst bijgewerkt</h2><div class="cards">${recent.map(recipeCard).join("")}</div>` : ""}
@@ -540,7 +538,7 @@
       <h1>Instellingen</h1>
       <section class="panel">
         <h2>Categorieën</h2>
-        <p class="muted">De bovenste categorie staat groot op de startpagina. Een categorie kan je pas verwijderen als ze leeg is.</p>
+        <p class="muted">De volgorde hier is ook de volgorde op de startpagina. Een categorie kan je pas verwijderen als ze leeg is.</p>
         <ul class="cat-list" id="catList">
           ${state.categories.map((c, i) => `<li data-id="${c.id}">
             <input class="emoji-in" type="text" value="${esc(c.emoji)}" aria-label="Icoon" maxlength="4">
