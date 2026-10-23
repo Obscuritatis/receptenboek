@@ -18,6 +18,39 @@
     ["Dranken", "🍹"],
   ];
 
+  // Vaste recepten die met de app meekomen. Elk recept wordt één keer toegevoegd;
+  // wie het daarna aanpast of verwijdert, krijgt het niet opnieuw.
+  const BUILTIN_RECIPES = [
+    {
+      id: "havermout-banaan-pannenkoeken",
+      category: "Desserts",
+      title: "Havermout-banaanpannenkoeken",
+      description: "Kleine, luchtige pannenkoekjes van havermout en banaan, zo uit de blender.",
+      servings: 4,
+      prepTime: 5,
+      cookTime: 15,
+      ingredients: [
+        "2 rijpe bananen",
+        "4 eieren",
+        "2 snufjes zout",
+        "1 tl vanille-extract en/of gemalen kaneel",
+        "150 g havermout (fijn of grof)",
+        "200 ml (plantaardige) melk",
+        "2 tl bakpoeder",
+        "3,5 el bloem",
+        "# Om te bakken",
+        "bakboter",
+      ],
+      steps: [
+        "Doe alle ingrediënten (behalve de bakboter) in de blender en mix tot een glad beslag.",
+        "Verhit een koekenpan met een klontje bakboter op hoog vuur.",
+        "Schep kleine hoopjes beslag in de pan en bak de pannenkoekjes aan beide kanten goudbruin.",
+      ],
+      notes: "Lekker met Griekse yoghurt, rood fruit en een beetje honing of ahornsiroop. Blijven 2 à 3 dagen goed in de koelkast en kunnen ook in de diepvries.",
+      source: "https://rutgerbakt.nl/gezond-bakken-recepten/havermout-ontbijt-pannenkoeken/",
+    },
+  ];
+
   const app = document.getElementById("app");
   const toastEl = document.getElementById("toast");
   let state = null;
@@ -72,11 +105,23 @@
     } catch (e) {
       console.warn("IndexedDB niet beschikbaar", e);
     }
-    if (!state) {
-      state = freshState();
-      await save();
-    }
+    if (!state) state = freshState();
+    addBuiltinRecipes();
+    await save();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  }
+
+  function addBuiltinRecipes() {
+    state.builtinAdded = state.builtinAdded || [];
+    for (const b of BUILTIN_RECIPES) {
+      if (state.builtinAdded.includes(b.id)) continue;
+      const { category, ...rest } = b;
+      const cat = state.categories.find((c) => c.name.toLowerCase() === category.toLowerCase()) || state.categories[0];
+      if (!state.recipes.some((r) => r.id === b.id)) {
+        state.recipes.push({ ...rest, categoryId: cat ? cat.id : "", photo: "", favorite: false, createdAt: Date.now(), updatedAt: Date.now() });
+      }
+      state.builtinAdded.push(b.id);
+    }
   }
 
   async function save() {
