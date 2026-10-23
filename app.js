@@ -589,6 +589,7 @@
 
   async function encodeRecipe(r) {
     const data = Object.fromEntries(SHARE_FIELDS.map((k) => [k, r[k]]));
+    data.id = r.id;
     const cat = catById(r.categoryId);
     if (cat) data.category = cat.name;
     const bytes = new TextEncoder().encode(JSON.stringify(data));
@@ -606,6 +607,7 @@
     const d = JSON.parse(text);
     if (!d.title) throw new Error("leeg recept");
     return {
+      id: typeof d.id === "string" ? d.id.slice(0, 64) : "",
       title: String(d.title), description: String(d.description || ""),
       servings: Number(d.servings) || "", prepTime: Number(d.prepTime) || "", cookTime: Number(d.cookTime) || "",
       ingredients: Array.isArray(d.ingredients) ? d.ingredients.map(String) : [],
@@ -642,22 +644,41 @@
     try { r = await decodeRecipe(code || ""); }
     catch { app.innerHTML = viewNotFound(); return; }
     const match = state.categories.find((c) => c.name.toLowerCase() === r.category.toLowerCase());
+    // Staat dit recept er al in? Zelfde id (bv. een vast recept of eerder ontvangen), of zelfde naam.
+    const existing = (r.id && recipeById(r.id)) ||
+      state.recipes.find((x) => x.title.trim().toLowerCase() === r.title.trim().toLowerCase());
     app.innerHTML = `
       <div class="crumbs"><a href="#/">Receptenboek</a> › Gedeeld recept</div>
       <div class="panel received">
+        ${existing ? `
+        <b>Dit recept staat al in je receptenboek.</b>
+        <div class="received-row">
+          <a class="btn" href="#/recept/${existing.id}">Openen in mijn receptenboek</a>
+          <button class="btn ghost" type="button" id="replaceReceived">Vervangen door deze versie</button>
+        </div>` : `
         <b>Iemand deelde dit recept met je.</b>
         <div class="received-row">
           <select id="recvCat" aria-label="Categorie">
             ${state.categories.map((c) => `<option value="${c.id}" ${match && match.id === c.id ? "selected" : ""}>${esc(c.emoji)} ${esc(c.name)}</option>`).join("")}
           </select>
           <button class="btn" type="button" id="saveReceived">Bewaren in mijn receptenboek</button>
-        </div>
+        </div>`}
       </div>
       ${recipeArticle(r, "Gedeeld recept", "")}`;
     bindCooking(r);
-    document.getElementById("saveReceived").addEventListener("click", async () => {
-      const { category, ...rest } = r;
-      const rec = { ...rest, id: uid(), categoryId: document.getElementById("recvCat").value, source: "", photo: "", favorite: false, createdAt: Date.now(), updatedAt: Date.now() };
+    const replace = document.getElementById("replaceReceived");
+    if (replace) replace.addEventListener("click", async () => {
+      if (!confirm(`Je eigen versie van “${existing.title}” vervangen door deze?`)) return;
+      const { category, id, ...rest } = r;
+      Object.assign(existing, rest, { updatedAt: Date.now() });
+      await save();
+      toast("Recept bijgewerkt");
+      location.hash = `#/recept/${existing.id}`;
+    });
+    const saveBtn = document.getElementById("saveReceived");
+    if (saveBtn) saveBtn.addEventListener("click", async () => {
+      const { category, id, ...rest } = r;
+      const rec = { ...rest, id: id && !recipeById(id) ? id : uid(), categoryId: document.getElementById("recvCat").value, source: "", photo: "", favorite: false, createdAt: Date.now(), updatedAt: Date.now() };
       state.recipes.push(rec);
       await save();
       toast("Recept bewaard");
