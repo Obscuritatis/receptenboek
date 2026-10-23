@@ -1,11 +1,11 @@
 /* Service worker: app-bestanden offline beschikbaar, bij verbinding altijd de nieuwste versie. */
-const CACHE = "receptenboek-v3";
+const CACHE = "receptenboek-v4";
 const SHELL = [
   "./",
   "index.html",
   "styles.css",
   "app.js",
-  "manifest.webmanifest",
+  "manifest.webmanifest?v=3",
   "icons/icon.svg",
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -43,9 +43,12 @@ self.addEventListener("fetch", (e) => {
 
   if (url.origin !== location.origin) return;
 
-  // Eigen bestanden: eerst netwerk, offline terugvallen op de cache
+  // Eigen bestanden: eerst netwerk (zonder de 10 minuten HTTP-cache van GitHub Pages), offline terugvallen op de cache
+  const fresh = req.mode === "navigate"
+    ? new Request(req.url, { cache: "no-cache", credentials: "same-origin" })
+    : new Request(req, { cache: "no-cache" });
   e.respondWith(
-    fetch(req)
+    fetch(fresh)
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
