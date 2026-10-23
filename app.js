@@ -47,7 +47,7 @@
         "Schep kleine hoopjes beslag in de pan en bak de pannenkoekjes aan beide kanten goudbruin.",
       ],
       notes: "Lekker met Griekse yoghurt, rood fruit en een beetje honing of ahornsiroop. Blijven 2 à 3 dagen goed in de koelkast en kunnen ook in de diepvries.",
-      source: "https://rutgerbakt.nl/gezond-bakken-recepten/havermout-ontbijt-pannenkoeken/",
+      source: "",
     },
   ];
 
@@ -122,6 +122,9 @@
       }
       state.builtinAdded.push(b.id);
     }
+    // Johan maakt eigen versies: de bron van de pannenkoeken mag weg (ook als het recept al bewaard was)
+    const pk = state.recipes.find((r) => r.id === "havermout-banaan-pannenkoeken");
+    if (pk && /rutgerbakt\.nl/.test(pk.source || "")) pk.source = "";
   }
 
   async function save() {
