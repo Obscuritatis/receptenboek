@@ -7,12 +7,11 @@
   const STATE_KEY = "state";
 
   const DEFAULT_CATEGORIES = [
-    ["Desserts", "🍮"],
+    ["Desserts & gebak", "🍮"],
     ["Voorgerechten", "🥗"],
     ["Soepen", "🍲"],
     ["Hoofdgerechten", "🍝"],
     ["Bijgerechten", "🥔"],
-    ["Gebak & taart", "🥧"],
     ["Ontbijt & brunch", "🥐"],
     ["Sauzen & dips", "🫙"],
     ["Dranken", "🍹"],
@@ -23,7 +22,7 @@
   const BUILTIN_RECIPES = [
     {
       id: "havermout-banaan-pannenkoeken",
-      category: "Desserts",
+      category: "Desserts & gebak",
       title: "Havermout-banaanpannenkoeken",
       description: "Kleine, luchtige pannenkoekjes van havermout en banaan, zo uit de blender.",
       servings: 4,
@@ -173,9 +172,25 @@
       console.warn("IndexedDB niet beschikbaar", e);
     }
     if (!state) state = freshState();
+    migrate();
     addBuiltinRecipes();
     await save();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  }
+
+  // Eenmalige aanpassingen aan bestaande receptenboeken
+  function migrate() {
+    state.migrations = state.migrations || [];
+    if (!state.migrations.includes("desserts-gebak")) {
+      const desserts = state.categories.find((c) => c.name === "Desserts");
+      const gebak = state.categories.find((c) => c.name === "Gebak & taart");
+      if (desserts) desserts.name = "Desserts & gebak";
+      if (desserts && gebak) {
+        state.recipes.forEach((r) => { if (r.categoryId === gebak.id) r.categoryId = desserts.id; });
+        state.categories = state.categories.filter((c) => c !== gebak);
+      }
+      state.migrations.push("desserts-gebak");
+    }
   }
 
   function addBuiltinRecipes() {
