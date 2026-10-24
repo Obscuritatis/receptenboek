@@ -236,9 +236,11 @@
   // ---------- Weergaven ----------
   function recipeCard(r) {
     const cat = catById(r.categoryId);
+    // Foto (eigen foto of van internet); lukt het laden niet, dan blijft het icoon van de categorie staan
+    const emoji = esc(cat ? cat.emoji : "🍽️");
     const thumb = r.photo
-      ? `<div class="thumb" style="background-image:url('${r.photo}')"></div>`
-      : `<div class="thumb nophoto">${esc(cat ? cat.emoji : "🍽️")}</div>`;
+      ? `<div class="thumb">${emoji}<img src="${esc(r.photo)}" alt="" loading="lazy" onerror="this.remove();this.parentNode&&this.parentNode.classList.add('nophoto')"></div>`
+      : `<div class="thumb nophoto">${emoji}</div>`;
     const total = (Number(r.prepTime) || 0) + (Number(r.cookTime) || 0);
     return `<a class="card" href="#/recept/${r.id}">
       ${thumb}
@@ -329,7 +331,7 @@
     ].filter(Boolean);
     return `
       <article class="recipe">
-        ${r.photo ? `<img class="photo" src="${r.photo}" alt="">` : ""}
+        ${r.photo ? `<img class="photo" src="${esc(r.photo)}" alt="" onerror="this.remove()">` : ""}
         <div class="inner">
           <div class="kicker">${esc(kicker)}</div>
           <h1>${esc(r.title)}</h1>
@@ -926,9 +928,9 @@
       try {
         const data = JSON.parse(await file.text());
         if (!Array.isArray(data.recipes) || !Array.isArray(data.categories)) throw new Error("geen geldig back-upbestand");
-        const added = mergeBackup(data);
+        const { added, updated } = mergeBackup(data);
         await save();
-        toast(added ? `${added} recepten toegevoegd` : "Geen nieuwe recepten: alles stond er al in");
+        toast([added ? `${added} recepten toegevoegd` : "", updated ? `${updated} recepten bijgewerkt` : ""].filter(Boolean).join(", ") || "Niets nieuws: alles stond er al in");
         render();
       } catch (err) {
         toast("Terugzetten mislukt: " + err.message);
@@ -945,16 +947,20 @@
       if (existing) catMap[c.id] = existing.id;
       else { state.categories.push({ id: c.id || uid(), name: c.name, emoji: c.emoji || "🍽️" }); catMap[c.id] = c.id; }
     }
-    let added = 0;
+    let added = 0, updated = 0;
     for (const r of data.recipes) {
       const rec = { ingredients: [], steps: [], ...r, categoryId: catMap[r.categoryId] || r.categoryId };
       let i = state.recipes.findIndex((x) => x.id === rec.id);
       if (i < 0) i = state.recipes.findIndex((x) => x.title.trim().toLowerCase() === String(rec.title || "").trim().toLowerCase());
       // Bestaat het recept al, dan blijft de recentst aangepaste versie staan
-      if (i >= 0) { if ((rec.updatedAt || 0) > (state.recipes[i].updatedAt || 0)) state.recipes[i] = rec; }
+      if (i >= 0) {
+        const cur = state.recipes[i];
+        if ((rec.updatedAt || 0) > (cur.updatedAt || 0)) { state.recipes[i] = { ...rec, id: cur.id, favorite: cur.favorite }; updated++; }
+        else if (!cur.photo && rec.photo) { cur.photo = rec.photo; updated++; } // eigen aanpassingen houden, wel de foto aanvullen
+      }
       else { state.recipes.push({ ...rec, id: rec.id || uid() }); added++; }
     }
-    return added;
+    return { added, updated };
   }
 
   // ---------- Start ----------

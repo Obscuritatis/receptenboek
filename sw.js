@@ -1,5 +1,6 @@
 /* Service worker: app-bestanden offline beschikbaar, bij verbinding altijd de nieuwste versie. */
-const CACHE = "receptenboek-v14";
+const CACHE = "receptenboek-v15";
+const PHOTOS = "receptenboek-fotos";
 const SHELL = [
   "./",
   "index.html",
@@ -19,7 +20,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== PHOTOS).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -37,6 +38,17 @@ self.addEventListener("fetch", (e) => {
         caches.open(CACHE).then((c) => c.put(req, copy));
         return res;
       }))
+    );
+    return;
+  }
+
+  // Foto's van andere sites (bv. bij geïmporteerde recepten): eerst uit de cache, zodat ze ook offline werken
+  if (url.origin !== location.origin && req.destination === "image") {
+    e.respondWith(
+      caches.open(PHOTOS).then((c) => c.match(req).then((hit) => hit || fetch(req, { mode: "no-cors" }).then((res) => {
+        c.put(req, res.clone());
+        return res;
+      })))
     );
     return;
   }
