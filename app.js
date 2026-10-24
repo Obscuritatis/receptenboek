@@ -19,103 +19,9 @@
 
   // Vaste recepten die met de app meekomen. Elk recept wordt één keer toegevoegd;
   // wie het daarna aanpast of verwijdert, krijgt het niet opnieuw.
-  const BUILTIN_RECIPES = [
-    {
-      id: "havermout-banaan-pannenkoeken",
-      category: "Desserts & gebak",
-      title: "Havermout-banaanpannenkoeken",
-      description: "Kleine, luchtige pannenkoekjes van havermout en banaan, zo uit de blender.",
-      servings: 4,
-      prepTime: 5,
-      cookTime: 15,
-      ingredients: [
-        "2 rijpe bananen",
-        "4 eieren",
-        "2 snufjes zout",
-        "1 tl vanille-extract en/of gemalen kaneel",
-        "150 g havermout (fijn of grof)",
-        "200 ml (plantaardige) melk",
-        "2 tl bakpoeder",
-        "3,5 el bloem",
-        "# Om te bakken",
-        "bakboter",
-      ],
-      steps: [
-        "Doe alle ingrediënten (behalve de bakboter) in de blender en mix tot een glad beslag.",
-        "Verhit een koekenpan met een klontje bakboter op hoog vuur.",
-        "Schep kleine hoopjes beslag in de pan en bak de pannenkoekjes aan beide kanten goudbruin.",
-      ],
-      notes: "Lekker met Griekse yoghurt, rood fruit en een beetje honing of ahornsiroop. Blijven 2 à 3 dagen goed in de koelkast en kunnen ook in de diepvries.",
-      source: "",
-    },
-    {
-      id: "kip-oven-dragonsaus",
-      category: "Hoofdgerechten",
-      title: "Kip uit de oven met dragonsaus",
-      description: "Met tagliatelle en geroosterde pompoen.",
-      servings: 4,
-      prepTime: 25,
-      cookTime: 20,
-      ingredients: [
-        "1 pakje dragon & rozemarijn",
-        "2 sjalotten",
-        "300 ml room (20% vet)",
-        "3 kl mosterd",
-        "4 kipfilets met vel",
-        "1 butternutpompoen",
-        "2 teentjes knoflook",
-        "500 g verse tagliatelle",
-        "# Uit je keuken",
-        "bakpapier",
-        "olijfolie",
-        "zout en zwarte peper",
-      ],
-      steps: [
-        "Verwarm de oven voor op 200 °C en bedek een bakplaat met bakpapier.",
-        "Pluk de blaadjes dragon en snijd de sjalot in fijne repen. Meng met de room en mosterd. Schik de kip in een ovenschaal en wrijf in met olijfolie, zout en zwarte peper (of kipkruiden). Giet de room erbij en rooster 30-35 min. in de oven.",
-        "Snijd de pompoen in halve maantjes (schillen hoeft niet) en pers de knoflook. Hussel op de bakplaat door elkaar met de rozemarijntakjes, een scheutje olijfolie, zout en zwarte peper. Rooster 25 min. bovenaan in de oven.",
-        "Breng een ruime pot gezouten water aan de kook voor de pasta. Kook de pasta in zo'n 2 min. al dente.",
-        "Haal de kip uit de oven, snijd in plakjes van 2 cm en schik opnieuw in de saus. Serveer met de pasta en geroosterde pompoen. Smakelijk!",
-      ],
-      notes: "Omdat de oven toch al aanstaat voor de pompoen, gaat de kip ook in de oven. Weinig plaats? Dan kan je de kip ook in de pan maken.",
-      source: "",
-    },
-    {
-      id: "puree-parmentier-zoete-aardappel",
-      category: "Hoofdgerechten",
-      title: "Puree parmentier met zoete aardappel",
-      description: "Met gehakt, prei en spinazie.",
-      servings: 4,
-      prepTime: 35,
-      cookTime: 10,
-      ingredients: [
-        "800 g zoete aardappel",
-        "2 preien",
-        "350 g stoofselder",
-        "2 gele uien",
-        "600 g gemengd gehakt (rund/varken)",
-        "1,5 zakjes Mexicaanse kruidenmix",
-        "200 g spinazie",
-        "50 g panko",
-        "# Uit je keuken",
-        "olijfolie",
-        "scheutje melk",
-        "snuifje nootmuskaat",
-        "zout en zwarte peper",
-      ],
-      steps: [
-        "Schil de zoete aardappel en snijd in stukken van zo'n 3 cm. Zet net onder water met een flinke snuif zout en kook in 15-20 min. gaar.",
-        "Halveer de prei in de lengte en snijd vervolgens in reepjes van 0,5 cm. Snijd de selder in stukjes van 1 cm en snipper de ui fijn.",
-        "Verhit een scheutje olijfolie in een pan op hoog vuur. Bak het gehakt rul samen met de ui, door met een vork of spatel in stukken te prakken. Kruid met de Mexicaanse mix en zwarte peper. Schep het gehakt in een ovenschaal.",
-        "Verwarm intussen de oven voor op 200 °C, bij voorkeur op grillstand.",
-        "Verhit opnieuw een scheutje olijfolie in dezelfde pan van het gehakt en stoof de prei en selder 5-7 min. Voeg de spinazie handje per handje toe en laat slinken. Kruid met zout en zwarte peper. Schep de groenten bovenop het gehakt in de ovenschaal.",
-        "Giet de aardappelen af en stamp, samen met een scheutje melk, tot een smeuïge puree. Kruid met nootmuskaat, zout en zwarte peper. Schep bovenop de groenten.",
-        "Werk de ovenschotel af met de panko en besprenkel royaal met olijfolie. Schuif 5-10 min. in de oven voor een krokant korstje.",
-      ],
-      notes: "Je kan deze ovenschotel perfect op voorhand klaarmaken. Warm 30 min. op in een oven van 180 °C.",
-      source: "",
-    },
-  ];
+  // Vaste recepten die met de app meekomen (bewust leeg: recepten voor eigen gebruik
+  // komen via een importbestand, zodat ze niet publiek in de code staan).
+  const BUILTIN_RECIPES = [];
 
   const app = document.getElementById("app");
   const toastEl = document.getElementById("toast");
@@ -213,9 +119,6 @@
       }
       state.builtinAdded.push(b.id);
     }
-    // Johan maakt eigen versies: de bron van de pannenkoeken mag weg (ook als het recept al bewaard was)
-    const pk = state.recipes.find((r) => r.id === "havermout-banaan-pannenkoeken");
-    if (pk && /rutgerbakt\.nl/.test(pk.source || "")) pk.source = "";
   }
 
   async function save() {
@@ -1025,7 +928,7 @@
         if (!Array.isArray(data.recipes) || !Array.isArray(data.categories)) throw new Error("geen geldig back-upbestand");
         const added = mergeBackup(data);
         await save();
-        toast(`${added} recepten toegevoegd`);
+        toast(added ? `${added} recepten toegevoegd` : "Geen nieuwe recepten: alles stond er al in");
         render();
       } catch (err) {
         toast("Terugzetten mislukt: " + err.message);
@@ -1045,8 +948,10 @@
     let added = 0;
     for (const r of data.recipes) {
       const rec = { ingredients: [], steps: [], ...r, categoryId: catMap[r.categoryId] || r.categoryId };
-      const i = state.recipes.findIndex((x) => x.id === rec.id);
-      if (i >= 0) state.recipes[i] = rec;
+      let i = state.recipes.findIndex((x) => x.id === rec.id);
+      if (i < 0) i = state.recipes.findIndex((x) => x.title.trim().toLowerCase() === String(rec.title || "").trim().toLowerCase());
+      // Bestaat het recept al, dan blijft de recentst aangepaste versie staan
+      if (i >= 0) { if ((rec.updatedAt || 0) > (state.recipes[i].updatedAt || 0)) state.recipes[i] = rec; }
       else { state.recipes.push({ ...rec, id: rec.id || uid() }); added++; }
     }
     return added;
