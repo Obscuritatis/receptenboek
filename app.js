@@ -477,6 +477,13 @@
     return `
       <div class="crumbs"><a href="#/">Receptenboek</a> › ${r ? `<a href="#/recept/${r.id}">${esc(r.title)}</a> › Bewerken` : "Nieuw recept"}</div>
       <h1>${r ? "Recept bewerken" : "Nieuw recept"}</h1>
+      ${r ? "" : `
+      <details class="panel paste" id="pastePanel" ${presetPaste() ? "open" : ""}>
+        <summary>📋 Recept plakken van een website</summary>
+        <p class="muted">Selecteer het hele recept op de website (titel, ingrediënten en bereiding), kopieer het en plak het hieronder. De app vult het formulier in; daarna kan je alles nakijken voor je opslaat.</p>
+        <textarea id="pasteText" placeholder="Plak hier het recept…"></textarea>
+        <div class="btn-row"><button class="btn" type="button" id="pasteBtn">Formulier invullen</button></div>
+      </details>`}
       <form class="form" id="recipeForm" autocomplete="off">
         <div class="field">
           <label for="f-title">Naam van het gerecht</label>
@@ -536,6 +543,96 @@
       </form>`;
   }
 
+  function presetPaste() {
+    return parseHash().params.has("plakken");
+  }
+
+  // ---------- Recept uit geplakte tekst halen ----------
+  const RE_INGR_HEAD = /^(ingredi[eë]nten|ingredients|benodigdheden|wat heb je nodig)\b/i;
+  const RE_STEP_HEAD = /^(bereiding(swijze)?|instructies|werkwijze|stappen|zo maak je het|aan de slag|preparation|method|instructions)\b/i;
+  const RE_NOTE_HEAD = /^(tips?( van de chef)?|notities?|weetje)\b/i;
+  const RE_SUB_HEAD = /^(zelf toevoegen|uit (je|jouw) (keuken|voorraadkast)|voor (de|het) .{2,30}|om te (bakken|serveren|garneren))\s*:?$/i;
+  const RE_NOISE = /^(print|afdrukken|delen|bewaar|opslaan|advertentie|bekijk|lees ook|reacties?|voedingswaarden?|allergenen|bevat|kan sporen|energie|vet|koolhydraten|eiwit|zout|vezels|suikers?)\b/i;
+  const UNIT = "(g|gr|gram|kg|ml|cl|dl|l|liter|el|tl|kl|eetlepels?|theelepels?|koffielepels?|stuks?|stuk\\(s\\)|st|teentjes?|teen|tenen|zakjes?|blikjes?|blik|bakjes?|potjes?|takjes?|bosjes?|plakjes?|snufjes?|snuf|scheutjes?|handjes?|cm|kopjes?|pakjes?)";
+  const RE_QTY_ONLY = new RegExp(`^([\\d½¼¾⅓⅔]+([.,/]\\d+)?(\\s*-\\s*\\d+)?\\s*${UNIT}?\\.?|${UNIT})$`, "i");
+  const RE_HAS_QTY = new RegExp(`^([\\d½¼¾⅓⅔]|${UNIT}\\b)`, "i");
+
+  // Sommige sites zetten hoeveelheid en ingrediënt op aparte regels ("150 g" / "Rode linzen" of omgekeerd)
+  function pairIngredients(list) {
+    const isQty = (l) => RE_QTY_ONLY.test(l) || /^naar smaak$/i.test(l);
+    const firstReal = list.findIndex((l) => !l.startsWith("#"));
+    const qtyFirst = firstReal >= 0 && isQty(list[firstReal]);
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+      const l = list[i], next = list[i + 1];
+      if (l.startsWith("#")) { out.push(l); continue; }
+      if (qtyFirst && isQty(l) && next && !next.startsWith("#") && !isQty(next)) { out.push(`${l} ${next}`); i++; continue; }
+      if (!qtyFirst && !isQty(l) && next && isQty(next)) {
+        out.push(/^naar smaak$/i.test(next) ? `${l} (naar smaak)` : `${next} ${l}`);
+        i++;
+        continue;
+      }
+      out.push(l);
+    }
+    return out;
+  }
+
+  function parseRecipeText(text) {
+    const raw = String(text || "").replace(/\r/g, "").split("\n").map((l) => l.replace(/\s+/g, " ").trim());
+    const lines = raw.filter((l) => l && !RE_NOISE.test(l));
+    const out = { title: "", description: "", servings: "", prepTime: "", cookTime: "", ingredients: [], steps: [], notes: "" };
+    const all = lines.join("\n");
+
+    const serv = all.match(/(\d+)\s*(personen|porties|pers\.?|persons|servings)\b/i);
+    if (serv) out.servings = Number(serv[1]);
+    const minutes = (re) => { const m = all.match(re); return m ? Number(m[1]) * (/u(ur)?|h/i.test(m[2] || "") ? 60 : 1) : ""; };
+    out.prepTime = minutes(/(?:voorbereiding(?:stijd)?|bereidingstijd|preptijd|prep|kookplezier)\D{0,15}(\d+)\s*(min|u|uur|h)?/i);
+    out.cookTime = minutes(/(?:kooktijd|oventijd|baktijd|wachttijd)\D{0,15}(\d+)\s*(min|u|uur|h)?/i);
+    if (!out.prepTime) out.prepTime = minutes(/(?:totale tijd|totaal|tijd)\D{0,15}(\d+)\s*(min|u|uur|h)?/i);
+
+    let section = "intro";
+    const intro = [];
+    const notes = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const bare = line.replace(/[:：]$/, "");
+      if (RE_INGR_HEAD.test(bare) && bare.length < 40) { section = "ingr"; continue; }
+      if (RE_STEP_HEAD.test(bare) && bare.length < 40) { section = "steps"; continue; }
+      if (RE_NOTE_HEAD.test(bare) && bare.length < 40) { section = "notes"; continue; }
+      if (section === "intro") { intro.push(line); continue; }
+      if (section === "notes") { notes.push(line); continue; }
+      if (section === "ingr") {
+        if (/^\d+(\s*personen|\s*porties)/i.test(line)) continue;
+        if (RE_SUB_HEAD.test(line) || (/:$/.test(line) && line.length < 40)) { out.ingredients.push("# " + bare); continue; }
+        out.ingredients.push(line.replace(/^[-•*·▢☐]\s*/, ""));
+        continue;
+      }
+      if (section === "steps") {
+        if (/^(stap\s*)?\d{1,2}[.):]?$/i.test(line)) continue; // losse stapnummers
+        out.steps.push(line.replace(/^(stap\s*)?\d{1,2}[.):]?\s+/i, "").replace(/^[-•*·]\s*/, ""));
+      }
+    }
+
+    out.ingredients = pairIngredients(out.ingredients);
+
+    // Geen kopjes gevonden: gok op basis van de regels zelf
+    if (!out.ingredients.length && !out.steps.length) {
+      for (const line of intro.slice(1)) {
+        if (RE_HAS_QTY.test(line) && line.length < 70) out.ingredients.push(line.replace(/^[-•*·]\s*/, ""));
+        else if (line.length >= 40) out.steps.push(line.replace(/^\d{1,2}[.)]\s*/, ""));
+      }
+      intro.length = Math.min(intro.length, 1);
+    }
+
+    const isMeta = (l) => /(\d+\s*(min|personen|porties|pers)\b)|^(moeilijkheid|niveau|keuken|tags?|categorie)/i.test(l);
+    const introLines = intro.filter((l) => !isMeta(l));
+    out.title = (introLines.find((l) => l.length <= 90) || "").replace(/\s*[-–|]\s*(recept|recipe).*$/i, "");
+    const rest = introLines.slice(introLines.indexOf(out.title) + 1).filter((l) => l.length > 25);
+    out.description = rest.slice(0, 2).join(" ").slice(0, 220);
+    out.notes = notes.join("\n");
+    return out;
+  }
+
   function viewSearch(q) {
     return `
       <h1>Zoeken</h1>
@@ -573,6 +670,11 @@
           </li>`).join("")}
         </ul>
         <div class="btn-row"><button class="btn ghost" type="button" id="addCat">＋ Categorie toevoegen</button></div>
+      </section>
+      <section class="panel">
+        <h2>Recept importeren</h2>
+        <p class="muted">Kopieer een recept van een website en plak het in de app. Titel, ingrediënten en stappen worden vanzelf ingevuld.</p>
+        <div class="btn-row"><a class="btn ghost" href="#/nieuw?plakken">📋 Recept plakken</a></div>
       </section>
       <section class="panel">
         <h2>Back-up</h2>
@@ -781,6 +883,26 @@
 
   function bindForm(r) {
     const form = document.getElementById("recipeForm");
+    const pasteBtn = document.getElementById("pasteBtn");
+    if (pasteBtn) pasteBtn.addEventListener("click", () => {
+      const parsed = parseRecipeText(document.getElementById("pasteText").value);
+      if (!parsed.ingredients.length && !parsed.steps.length) {
+        toast("Ik vond geen ingrediënten of stappen in de geplakte tekst");
+        return;
+      }
+      const set = (name, v) => { if (v !== "" && v != null) form.elements[name].value = v; };
+      set("title", parsed.title);
+      set("description", parsed.description);
+      set("servings", parsed.servings);
+      set("prepTime", parsed.prepTime);
+      set("cookTime", parsed.cookTime);
+      set("ingredients", parsed.ingredients.join("\n"));
+      set("steps", parsed.steps.join("\n"));
+      set("notes", parsed.notes);
+      document.getElementById("pastePanel").open = false;
+      form.scrollIntoView({ behavior: "smooth" });
+      toast("Ingevuld, kijk het even na en kies de categorie");
+    });
     let photo = r ? r.photo || "" : "";
     const preview = document.getElementById("photoPreview");
     const removeBtn = document.getElementById("removePhoto");

@@ -243,6 +243,10 @@ main {
 .received-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .received-row select { flex: 1 1 180px; width: auto; }
 
+.paste { margin-bottom: 16px; }
+.paste summary { cursor: pointer; font-weight: 700; color: var(--accent-dark); }
+.paste textarea { margin-top: 6px; min-height: 180px; }
+
 /* ---------- Forms ---------- */
 .form { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
 .field { margin-bottom: 16px; }
