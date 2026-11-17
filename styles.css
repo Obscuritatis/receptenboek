@@ -292,3 +292,5 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--butter); ou
   .recipe .photo { max-height: 260px; }
   .ingredients input { display: none; }
 }
+
+.notice{margin:0 0 16px;padding:12px 14px;border-radius:12px;background:#fdecc8;color:#5a3a12;border:1px solid #e9c77d;font-size:.95rem}

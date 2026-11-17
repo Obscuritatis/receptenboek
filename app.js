@@ -71,16 +71,43 @@
     };
   }
 
+  // Reservekopie in localStorage: als IndexedDB even niet leesbaar is (bv. iPhone na lang in de
+  // achtergrond), gaan de recepten niet verloren.
+  const COPY_KEY = "receptenboek-kopie";
+  let readFailed = false;
+
+  function readCopy() {
+    try { const raw = localStorage.getItem(COPY_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  }
+
+  function writeCopy() {
+    try { localStorage.setItem(COPY_KEY, JSON.stringify(state)); }
+    catch { try { localStorage.removeItem(COPY_KEY); } catch {} } // te groot (eigen foto's): dan enkel IndexedDB, geen verouderde kopie
+  }
+
+  const count = (s) => (s && Array.isArray(s.recipes) ? s.recipes.length : 0);
+
   async function load() {
-    try {
-      state = (await dbGet(STATE_KEY)) || null;
-    } catch (e) {
-      console.warn("IndexedDB niet beschikbaar", e);
+    let stored = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        stored = (await dbGet(STATE_KEY)) || null;
+        readFailed = false;
+        break;
+      } catch (e) {
+        readFailed = true;
+        console.warn("IndexedDB niet leesbaar", e);
+        await new Promise((r) => setTimeout(r, 400));
+      }
     }
-    if (!state) state = freshState();
+    // Neem de reservekopie als IndexedDB leeg is of minder recepten heeft
+    const copy = readCopy();
+    if (count(copy) > count(stored)) stored = copy;
+    state = stored || freshState();
     migrate();
     addBuiltinRecipes();
-    await save();
+    // Kon er niet gelezen worden, schrijf dan niets weg: anders overschrijft een leeg boek de recepten
+    if (!readFailed || count(state) > 0) await save();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   }
 
@@ -122,6 +149,7 @@
   }
 
   async function save() {
+    writeCopy();
     try {
       await dbSet(STATE_KEY, state);
     } catch (e) {
@@ -265,7 +293,10 @@
     };
     const favorites = state.recipes.filter((r) => r.favorite);
     const recent = [...state.recipes].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 4);
-    return `
+    const warn = readFailed && !count(state)
+      ? `<div class="notice">⚠️ Je recepten konden nu niet gelezen worden. Er is niets overschreven: sluit de app volledig af en open ze opnieuw.</div>`
+      : "";
+    return `${warn}
       <section class="hero">
         <h1>Mijn Receptenboek</h1>
         <p>Lievelingsrecepten, netjes bij elkaar.</p>
@@ -584,6 +615,7 @@
       <section class="panel">
         <h2>Back-up</h2>
         <p class="muted">Je recepten worden alleen op dit toestel bewaard. Maak af en toe een back-up, of gebruik die om je recepten naar een ander toestel over te zetten.</p>
+        <p class="muted" id="storageInfo"></p>
         <div class="btn-row">
           <button class="btn" type="button" id="exportBtn">Back-up downloaden</button>
           <label class="btn ghost" for="importFile" style="cursor:pointer">Back-up terugzetten</label>
@@ -876,7 +908,20 @@
     input.focus();
   }
 
+  async function showStorageInfo() {
+    const el = document.getElementById("storageInfo");
+    if (!el || !navigator.storage || !navigator.storage.persisted) return;
+    try {
+      let ok = await navigator.storage.persisted();
+      if (!ok && navigator.storage.persist) ok = await navigator.storage.persist();
+      el.textContent = ok
+        ? "✅ Opslag beschermd: de browser ruimt je recepten niet zomaar op."
+        : "⚠️ Opslag niet beschermd: de browser kan je recepten opruimen als het toestel vol raakt. Open het receptenboek via het app-icoon en maak geregeld een back-up.";
+    } catch {}
+  }
+
   function bindSettings() {
+    showStorageInfo();
     const list = document.getElementById("catList");
     list.addEventListener("change", async (e) => {
       const li = e.target.closest("li");

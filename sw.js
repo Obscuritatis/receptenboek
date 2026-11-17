@@ -1,6 +1,6 @@
 /* Service worker: app-bestanden offline beschikbaar, bij verbinding altijd de nieuwste versie. */
-const CACHE = "receptenboek-v15";
-const PHOTOS = "receptenboek-fotos";
+const CACHE = "receptenboek-v16";
+const PHOTOS = "receptenboek-fotos-2";
 const SHELL = [
   "./",
   "index.html",
@@ -42,13 +42,19 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Foto's van andere sites (bv. bij geïmporteerde recepten): eerst uit de cache, zodat ze ook offline werken
+  // Foto's van andere sites (bv. bij geïmporteerde recepten): eerst uit de cache, zodat ze ook offline werken.
+  // Alleen gewone (CORS-)antwoorden bewaren: "opaque" antwoorden tellen in Chrome voor ~7 MB per foto mee in de
+  // opslag, waardoor de browser alle gegevens van de site (ook de recepten) kon opruimen.
   if (url.origin !== location.origin && req.destination === "image") {
     e.respondWith(
-      caches.open(PHOTOS).then((c) => c.match(req).then((hit) => hit || fetch(req, { mode: "no-cors" }).then((res) => {
-        c.put(req, res.clone());
-        return res;
-      })))
+      caches.open(PHOTOS).then((c) => c.match(req.url).then((hit) => hit ||
+        fetch(req.url, { mode: "cors", credentials: "omit" })
+          .then((res) => {
+            if (res.ok) c.put(req.url, res.clone());
+            return res;
+          })
+          .catch(() => fetch(req))
+      ))
     );
     return;
   }
